@@ -26,13 +26,11 @@ type BikeFields<'w> =
     Speed         : float
     Direction     : Direction
   }with
-  static member Remove e =
-    fun w s ->
+  static member Update : Coroutine<'w, List<GameObject<'w, BikeFields<'w>, DrawContext>>, bool> =
+    fun (w:'w) (s:List<GameObject<'w, BikeFields<'w>, DrawContext>>) ->
       
-  static member Update : Coroutine<'w, BikeFields<'w>, bool> =
-    fun world bike ->
       //check for collision
-      Done(false, bike)
+      Done(false, s)
   static member Draw : Coroutine<'w*BikeFields<'w>, DrawContext, Unit> =
     fun (world, bike) map ->
       Done((), map)
@@ -72,12 +70,23 @@ type World =
     Powerups  : List<GameObject<World, PowerupFields<World>, DrawContext>>
   }with
   static member Create bikes barrs powers =
-    { Bikes = bikes
-      Barriers = barrs
-      Powerups = powers}
-  static member Update : Coroutine<World, World, Unit> =
     fun w s ->
-      let bikes' = BikeFields.Update
-      let barrs' = BarrierFields.Update
-      let powers' = PowerupFields.Update
-      Done((), World.Create bikes' barrs' powers')
+      Done((),
+        { Bikes = bikes
+          Barriers = barrs
+          Powerups = powers})
+  static member Update : Coroutine<World, World, Unit> =
+    fun (w:World) (s:World) ->
+      let bikes' = (cs{
+                      let! bikes = BikeFields<World>.Update
+                      return bikes
+                    }) w s.Bikes
+      let barrs' = (cs{
+                      let! barrs = BarrierFields<World>.Update
+                      return barrs
+                    }) w s.Barriers
+      let powers' = (cs{
+                      let! powers = PowerupFields<World>.Update
+                      return powers
+                    }) w s.Powerups
+      Done((), s)
