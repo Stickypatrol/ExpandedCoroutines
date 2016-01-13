@@ -1,4 +1,4 @@
-﻿module Monad
+﻿module CoroutineMonad
 
 type Coroutine<'w, 's, 'a> = 'w -> 's -> CoroutineStep<'w, 's, 'a>
 and CoroutineStep<'w, 's, 'a> =
@@ -35,10 +35,8 @@ let wait interval =
         let! t = time
         let dt = (t-t0).TotalSeconds
         if dt > interval then
-          do! yield_
           return ()
         else
-          do! yield_
           return! wait()
       }
     do! wait()
