@@ -75,46 +75,18 @@ and World =
     { Bikes = bikes
       Barriers = barrs
       Powerups = powers}
-  static member Update : Coroutine<World, World, 'a> =
+  static member Update : Coroutine<World, World, Unit> =
     cs{
       let! s = GetState
       let bikes, barrs, powers = World.Split s
       let UpdateParts =
         fun w s ->
-          let bikes' = BikeFields.Update bikes
-          let barrs' = BikeFields.Update barrs
-          let powers' = BikeFields.Update powers
-      let UpdateBikes() =
-        cs{
-          let! s = GetState
-          do! SetState bikes
-          do! BikeFields.Update
-          let! s' = GetState
-          do! SetState s
-          return s'
-        }
-      let UpdateBarrs() =
-        cs{
-          let! s = GetState
-          do! SetState barrs
-          do! BarrierFields.Update
-          let! s' = GetState
-          do! SetState s
-          return s'
-        }
-      let UpdatePowers() =
-        cs{
-          let! s = GetState
-          do! SetState powers
-          do! PowerupFields.Update
-          let! s' = GetState
-          do! SetState s
-          return s'
-        }
-      let! bikes' = UpdateBikes()
-      let! barrs' = UpdateBarrs()
-      let! powers' = UpdatePowers()
-      do! SetState (World.Create bikes' barrs' powers')
+          let bikes' = BikeFields.Update w bikes
+          let barrs' = BarrierFields.Update w barrs
+          let powers' = PowerupFields.Update w powers
+          Done((World.Create (GetOnlyState bikes') (GetOnlyState barrs') (GetOnlyState powers')), s)
+      let! state' = UpdateParts
+      do! SetState state'
       return ()
     }
     

@@ -23,6 +23,11 @@ type CoroutineBuilder() =
       this.Bind(k(s |> Seq.head), fun () -> this.For(s |> Seq.tail, k))
 let cs = CoroutineBuilder()
 
+let GetOnlyState costep =
+  match costep with
+  | Done(a, s) -> s
+  | Yield(c', s) -> s
+
 let GetState : Coroutine<'w, 's, 's> =
   fun w s ->
     Done(s, s)
