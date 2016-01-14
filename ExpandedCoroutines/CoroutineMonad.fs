@@ -16,7 +16,20 @@ type CoroutineBuilder() =
   member this.Return(x: 'a): Coroutine<'w, 's, 'a> = ret x
   member this.ReturnFrom(s: Coroutine<'w, 's, 'a>) = s
   member this.Bind(p, k) = bind(p, k)
+  member this.For(s:seq<'a>, k:'a->Coroutine<'w, 's, Unit>) : Coroutine<'w, 's, Unit> =
+    if s |> Seq.isEmpty then
+      ret ()
+    else
+      this.Bind(k(s |> Seq.head), fun () -> this.For(s |> Seq.tail, k))
 let cs = CoroutineBuilder()
+
+let GetState : Coroutine<'w, 's, 's> =
+  fun w s ->
+    Done(s, s)
+
+let SetState newState : Coroutine<'w, 's, Unit> =
+  fun w s ->
+    Done((), newState)
 
 let rec repeat s =
   cs{
@@ -24,7 +37,7 @@ let rec repeat s =
     return! repeat s
   }
 
-let yield_ = fun w s -> Yield((fun w s -> Done((),s)),s) 
+let yield_ = fun w s -> Yield((fun w s -> Done((),s)),s)
 
 let wait interval =
   let time = fun w s -> Done(System.DateTime.Now, s)
@@ -42,7 +55,7 @@ let wait interval =
     do! wait()
   }
 
-let co_step cos =
-  match cos with
+let co_step c =
+  match c with
   | Done(a, s) -> cs{return a}
-  | Yield(p', s) -> p'
+  | Yield(c', s) -> c'

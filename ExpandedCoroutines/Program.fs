@@ -10,8 +10,8 @@ let PlayerA =
                 Speed = 1.0;
                 Direction = Right
               };
-      Update = BikeFields<World>.Update;
-      Draw = BikeFields<World>.Draw;
+      Update = BikeFields.Update;
+      Draw = BikeFields.Draw;
       }
 
 let PlayerB = 
@@ -22,8 +22,8 @@ let PlayerB =
                 Speed = 1.0;
                 Direction = Right
               };
-      Update = BikeFields<World>.Update;
-      Draw = BikeFields<World>.Draw;
+      Update = BikeFields.Update;
+      Draw = BikeFields.Draw;
       }
 
 let DrawMap = Map.empty<Position, char>
