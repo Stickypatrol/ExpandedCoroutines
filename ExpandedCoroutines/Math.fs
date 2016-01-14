@@ -12,5 +12,5 @@ type Position =
         Y : int
     }
     with
-    static member Add p (x,y) =
+    static member (+) (p, (x,y)) =
       {X = p.X + x; Y = p.Y + y}
