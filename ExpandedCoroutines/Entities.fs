@@ -14,8 +14,8 @@ type PowerupType =
 type GameObject<'w, 'fs, 'dc> =
   {
     Fields : 'fs
-    Update : Coroutine<'w, 'fs, Unit>
-    Draw   : Coroutine<'w*'fs, 'dc, Unit>
+    Update : Coroutine<'w, List<GameObject<'w, 'fs, 'dc>>, Unit> //i changed this from a simple 'fs to GameObject<'w, 'fs, 'dc> to make sure it worked for lists, but I'm starting to doubt whether the point was
+    Draw   : Coroutine<'w*List<GameObject<'w, 'fs, 'dc>>, 'dc, Unit> //to pass entire lists of GameObjects or just single instances at a time
   }
 
 and BikeFields =
@@ -27,52 +27,83 @@ and BikeFields =
       Direction     : Direction
     }with
     static member Collision =
-      fun (w:World) bs ->
+      fun (w:World) (bs:List<GameObject<World, BikeFields, DrawContext>>) ->
         let CheckID a b = not (a.Fields.ID = b.Fields.ID)
         let CheckCol a coll = List.exists (fun (e:GameObject<World, BarrierFields, DrawContext>) -> e.Fields.Position = a) coll
         let bs' = [for b in bs do if not(List.exists (fun e -> (CheckID e b && e.Fields.Position = b.Fields.Position)) w.Bikes ||
                                          CheckCol b.Fields.Position w.Barriers) then yield b]
-        Done(bs',bs')
-    static member Update : Coroutine<World, List<GameObject<World, BikeFields, DrawContext>>, Unit> =
-      fun (w:World) bs ->
-        //do processinput
+        Done((),bs')
+    static member Move =
+      fun w (bs:List<GameObject<World, BikeFields, DrawContext>>) ->
         let bs' = [for b in bs do match b.Fields.Direction with
                                   | Up -> yield {b with Fields = {b.Fields with Position = b.Fields.Position + (0,1)}}
                                   | Down -> yield {b with Fields = {b.Fields with Position = b.Fields.Position + (0,-1)}}
                                   | Right -> yield {b with Fields = {b.Fields with Position = b.Fields.Position + (1,0)}}
-                                  | Left -> yield {b with Fields = {b.Fields with Position = b.Fields.Position + (-1,0)}}]
+                                  | Left -> yield {b with Fields = {b.Fields with Position = b.Fields.Position + (-1,0)}}
+                  ]
+        
         Done((), bs')
-    static member Draw : Coroutine<World*BikeFields, DrawContext, Unit> =
-      fun (world, bike) map ->
+    static member Update : Coroutine<World, List<GameObject<World, BikeFields, DrawContext>>, Unit> =
+      cs{
+        do! BikeFields.Collision
+        do! BikeFields.Move
+        return ()
+      }
+    static member Draw : Coroutine<World*List<GameObject<World, BikeFields, DrawContext>>, DrawContext, Unit> =
+      fun (world, bikes) map ->
         Done((), map)
 
 and BarrierFields =
   {
+    ID            : int
     Type          : char
     Position      : Position
     LifeTime      : int
   }with
+  static member Collision =
+    fun (w:World) (br:List<GameObject<World, BarrierFields, DrawContext>>) ->
+      let CheckID a b = not (a.Fields.ID = b.Fields.ID)
+      let CheckCol a coll = List.exists (fun (e:GameObject<World, BikeFields, DrawContext>) -> e.Fields.Position = a) coll
+      let br' = [for barr in br do if not(CheckCol barr.Fields.Position w.Bikes ||
+                                          List.exists (fun e -> CheckID e barr && e.Fields.Position = barr.Fields.Position) w.Barriers) then
+                                    yield barr]
+      Done((),br')
+  static member DecrLifetime=
+    cs{
+      let decr() =
+        fun w (br:List<GameObject<World, BarrierFields, DrawContext>>) ->
+          let br' = [for (barr:GameObject<World, BarrierFields, DrawContext>) in br do
+                        if barr.Fields.LifeTime > 0 then
+                          yield {barr with 
+                                  Fields = {barr.Fields with
+                                              LifeTime = barr.Fields.LifeTime - 1}}]
+          Done((), br')
+      do! decr()
+      return ()
+    }
   static member Update : Coroutine<World, List<GameObject<World, BarrierFields, DrawContext>>, Unit> =
-    fun world brs ->
-      //check for collision
-      Done((), brs)
-  static member Draw : Coroutine<World*BarrierFields, DrawContext, Unit> =
+    cs{
+      do! BarrierFields.DecrLifetime
+      do! BarrierFields.Collision
+      return ()
+    }
+  static member Draw : Coroutine<World*List<GameObject<World, BarrierFields, DrawContext>>, DrawContext, Unit> =
     fun (world, bar) map ->
       Done((), map)
 
 and PowerupFields =
   {
+    ID            : int
     Type          : PowerupType
     Position      : Position
     LifeTime      : int
   }with
   static member Update : Coroutine<World, List<GameObject<World, PowerupFields, DrawContext>>, Unit> =
     fun world ps ->
-      //check for collision
       Done((), ps)
-  static member Draw : Coroutine<World*PowerupFields, DrawContext, Unit> =
-    fun (world, power) map ->
-      Done((), map)
+  static member Draw : Coroutine<World*List<GameObject<World, PowerupFields, DrawContext>>, DrawContext, Unit> =
+    fun (world, power) dc ->
+      Done((), dc)
 
 and World =
   {
@@ -87,7 +118,7 @@ and World =
     { Bikes = bikes
       Barriers = barrs
       Powerups = powers}
-  static member Update : Coroutine<World, World, Unit> =
+  static member Update : Coroutine<World, List<GameObject<World, World, DrawContext>>, Unit> =
     cs{
       let! s = GetState
       let bikes, barrs, powers = World.Split s
@@ -96,57 +127,24 @@ and World =
           let bikes' = BikeFields.Update w bikes
           let barrs' = BarrierFields.Update w barrs
           let powers' = PowerupFields.Update w powers
-          Done((World.Create (GetOnlyState bikes') (GetOnlyState barrs') (GetOnlyState powers')), s)
-      let! state' = UpdateParts bikes barrs powers
+          Done((), s)
+      do! UpdateParts bikes barrs powers
+      let! state' = GetState
       do! SetState state'
       return ()
     }
-    
-    
-    
-    
-    (*cs{
-      let Divide() =
-        fun w s ->
-          let bikes, barrs, powers = World.Split s
-          let bikes' = (cs{
-                          let! bikes' = BikeFields.Update
-                          return ()
-                        }) w bikes
-          let barrs' =  (cs{
-                          let! bikes' = BarrierFields.Update
-                          return ()
-                        }) w bikes
-          let powers' = (cs{
-                          let! powers' = PowerupFields.Update
-                          return ()
-                        }) w powers
-          Done((World.Create bikes' barrs' powers'), s)
-      do! Divide()
-    }*)
-
-
-
-      (*
-      let result = (cs{
-                                    let! bikes = World.getBikes
-                                    let! barrs = World.getBarrs
-                                    let! powers = World.getPowers
-                                    return bikes, barrs, powers
-                                  }) w s
-      Done((),s)
-    
-    
-    fun (w:World) (s:World) ->
-      let bikes' = [for bike in bikes do cs{let! hit = BikeFields.Update w bike
-                                            if hit then 
-                                              yield bike'} w bike]
-      let barrs' = (cs{
-                      let! barrs = BarrierFields.Update
-                      return barrs
-                    }) w s.Barriers
-      let powers' = (cs{
-                      let! powers = PowerupFields.Update
-                      return powers
-                    }) w s.Powerups
-      Done((), s)*)
+  static member Draw : Coroutine<World*List<GameObject<World, World, DrawContext>>, DrawContext, Unit> =
+    cs{
+      let! w, worlds = GetWorld
+      let bikes, barrs, powers = World.Split w
+      let DrawParts bikes barrs powers =
+        fun (w, ws) dc ->
+          let bikes' = (BikeFields.Draw (w, bikes) dc)
+          let barrs' =  (BarrierFields.Draw (w, barrs) dc)
+          let powers' = (PowerupFields.Draw (w, powers) dc)
+          Done((), dc)
+      do! DrawParts bikes barrs powers
+      let! dc' = GetState
+      do! SetState dc'
+      return ()
+    }

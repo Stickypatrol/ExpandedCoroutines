@@ -12,6 +12,8 @@ let rec bind (p: Coroutine<'w, 's, 'a>, k: 'a -> Coroutine<'w, 's, 'b>): Corouti
       | Yield (p', s') -> Yield(bind(p', k), s')
 let ret x = fun w s -> Done (x, s)
 
+let (>>=) = bind
+
 type CoroutineBuilder() =
   member this.Return(x: 'a): Coroutine<'w, 's, 'a> = ret x
   member this.ReturnFrom(s: Coroutine<'w, 's, 'a>) = s
@@ -35,6 +37,10 @@ let GetState : Coroutine<'w, 's, 's> =
 let SetState newState : Coroutine<'w, 's, Unit> =
   fun w s ->
     Done((), newState)
+
+let GetWorld : Coroutine<'w, 's, 'w> =
+  fun w s ->
+    Done(w, s)
 
 let rec repeat s =
   cs{

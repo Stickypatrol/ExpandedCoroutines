@@ -39,5 +39,13 @@ let GameState = //first world
     Update = World.Update;
     Draw = World.Draw
   }
+
+let rec UpdateLoop w =
+  fun w s ->
+    let  = World.Update w s
+
+
 let rec mainloop =
-  ()
+  cs{
+    do! repeat ()
+  }
