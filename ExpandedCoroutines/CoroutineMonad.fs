@@ -68,5 +68,5 @@ let wait interval =
 
 let co_step c =
   match c with
-  | Done(a, s) -> cs{return a}
-  | Yield(c', s) -> c'
+  | Done(a, s') -> cs{return a}, s'
+  | Yield(c', s') -> c', s'

@@ -50,7 +50,9 @@ and BikeFields =
         return ()
       }
     static member Draw : Coroutine<World*List<GameObject<World, BikeFields, DrawContext>>, DrawContext, Unit> =
-      fun (world, bikes) map ->
+      fun (world, bikes) (map:Map<Position, char>) ->
+        let rec addToMap = //add this function
+          
         Done((), map)
 
 and BarrierFields =
@@ -121,7 +123,7 @@ and World =
   static member Update : Coroutine<World, List<GameObject<World, World, DrawContext>>, Unit> =
     cs{
       let! s = GetState
-      let bikes, barrs, powers = World.Split s
+      let bikes, barrs, powers = World.Split s.Head.Fields
       let UpdateParts bikes barrs powers =
         fun w s ->
           let bikes' = BikeFields.Update w bikes

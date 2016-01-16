@@ -40,12 +40,19 @@ let GameState = //first world
     Draw = World.Draw
   }
 
-let rec UpdateLoop w =
-  fun w s ->
-    let  = World.Update w s
+let rec MainLoop (c1:Coroutine<'s, 's, Unit>) c2 w s =
+  let c1', s' = co_step (c1 w s)
+  let c2', _ = co_step (c2 (w,s) Map.empty)
+  let w' = s'
+  System.Threading.Thread.Sleep 250
+  MainLoop c1' c2' w' s'
+
+do MainLoop World.Update World.Draw GameState GameState
 
 
-let rec mainloop =
-  cs{
-    do! repeat ()
-  }
+(*
+I need to run the update functions
+and then get the STATE out of it, use it for drawing
+then change the world to the current state
+then run again
+*)
