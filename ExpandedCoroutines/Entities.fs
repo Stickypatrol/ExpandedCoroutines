@@ -135,7 +135,7 @@ and World =
       do! SetState (World.Create bikes' barrs' powers')
       return ()
     }
-  static member Draw : Coroutine<World*World, DrawContext, DrawContext> =
+  static member Draw : Coroutine<World*World, DrawContext, Unit> =
     cs{
       let! w, worlds = GetWorld
       let bikes, barrs, powers = World.Split w
@@ -150,5 +150,5 @@ and World =
           Done(completedc, completedc)
       let! dc = DrawPart bikes barrs powers
       do! SetState dc
-      return dc
+      return ()
     }

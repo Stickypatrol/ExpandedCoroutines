@@ -66,8 +66,8 @@ let wait interval =
     do! wait()
   }
 
-let Costep c =
-  match c with
+let Costep c w s =
+  match c w s with
   | Done(a, s') -> cs{return a}, s'
   | Yield(c', s') -> c', s'
 

@@ -18,7 +18,7 @@ let PlayerB =
       Name = "Player B";
       Icon = 'B';
       ID = 1;
-      Position = {X = 50; Y = 10};
+      Position = {X = 50; Y = 5};
       Speed = -1.0;
       Direction = Up
     };
@@ -34,16 +34,16 @@ let GameState = //first world
     Powerups = []
   }
 
-let rec MainLoop (c1:Coroutine<'s, 's, Unit>) c2 w s =
-  let c1', s' = Costep (c1 w s)
-  let c2', (dc:Map<Position, char>) = Costep (c2 (w,s') Map.empty)
-  //Console.Clear()
+let rec MainLoop (updateC:Coroutine<World, World, Unit>) (drawC:Coroutine<World*World, DrawContext, Unit>) w s =
+  let _, s' = Costep updateC w s
+  let _', (dc:Map<Position, char>) = Costep drawC (s',s') Map.empty
+  Console.Clear()
   if dc.IsEmpty then printfn "map empty"
   do Map.iter (fun pos (icon:char) -> do Console.SetCursorPosition(pos.X, pos.Y)
                                       do Console.WriteLine(icon)) dc
   let w' = s'
   System.Threading.Thread.Sleep 250
-  MainLoop c1' c2' w' s'
+  MainLoop updateC drawC w' s'
 
 do MainLoop World.Update World.Draw GameState GameState
 
